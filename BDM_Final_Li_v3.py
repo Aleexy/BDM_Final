@@ -14,19 +14,19 @@ def main(sc):
 
     years = ['2015', '2016', '2017', '2018', '2019']
     def parseCSV(idx, part):
-        if idx==0:
-            next(part)
-        for p in csv.reader(part):
-            if p[23].isalpha() or p[24] == '' or p[21] == '' or p[23] == '' or p[4][-4:] not in years:
-                continue
-            if '-' in p[23]:
-                yield(p[23].split('-')[0], p[23].split('-')[1], p[24].lower(), p[21], p[4][-4:])
-            else:
-                yield(p[23], '', p[24].lower(), p[21], p[4][-4:])
+    if idx==0:
+        next(part)
+    for p in csv.reader(part):
+        if p[23].isalpha() or p[24] == '' or p[21] == '' or p[23] == '' or p[4][-4:] not in years:
+            continue
+        if '-' in p[23]:
+            yield(p[23].split('-')[0], p[23].split('-')[1], p[24].lower(), p[21], p[4][-4:], p[0])
+        else:
+            yield(p[23], '', p[24].lower(), p[21], p[4][-4:], p[0])
 
     rows = sc.textFile('/data/share/bdm/nyc_parking_violation/*.csv', use_unicode=True).mapPartitionsWithIndex(parseCSV)
 
-    df = sqlContext.createDataFrame(rows, ('House Number', 'HN Compound', 'Street Name', 'County', 'Date'))
+    df = sqlContext.createDataFrame(rows, ('House Number', 'HN Compound', 'Street Name', 'County', 'Date', 'SN'))
 
     map_NY = (col("County")=='NY')|\
             (col("County")=='MAN')|\
@@ -134,7 +134,7 @@ def main(sc):
 
     filter_udf = udf(match, returnType=BooleanType())
 
-    filtered = joined.filter(filter_udf("House Number", "HN Compound", "LL_HN", "LH_HN", "RL_HN", "RH_HN", "LL_HNC", "LH_HNC", "RL_HNC", "RH_HNC")).collect()
+    filtered = joined.filter(filter_udf("House Number", "HN Compound", "LL_HN", "LH_HN", "RL_HN", "RH_HN", "LL_HNC", "LH_HNC", "RL_HNC", "RH_HNC"))
     filtered = filtered.select(col('ID'), col('Date'), col('SN'))
     filtered = filtered.dropDuplicates(['ID', 'SN'])
     count_df = filtered.groupBy(['ID']).pivot('Date').count().drop('Date')
