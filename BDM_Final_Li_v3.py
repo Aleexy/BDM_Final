@@ -9,6 +9,7 @@ from pyspark.sql.functions import PandasUDFType
 from pyspark.sql.functions import udf
 from pyspark.sql.types import *
 import sys
+import pandas as pd
 
 def writeToCSV(row):
     return ', '.join(str(item) for item in row)
@@ -113,7 +114,7 @@ def main(sc):
     cond3 = (df['County'] == centerline['borocode'])
     joined = df.join(centerline, (cond3 & (cond1|cond2)), how="inner")
 
-    def match(HN, HNC, LL_HN, LH_HN, RL_HN, RH_HN, LL_HNC, LH_HNC, RL_HNC, RH_HNC):
+    '''def match(HN, HNC, LL_HN, LH_HN, RL_HN, RH_HN, LL_HNC, LH_HNC, RL_HNC, RH_HNC):
         ncond1 = HN != None
         ncond2 = HNC != None
         ncond3 = LL_HN != None
@@ -145,16 +146,23 @@ def main(sc):
     filter_udf = udf(match, returnType=BooleanType())
 
     filtered = joined.filter(filter_udf("House Number", "HN Compound", "LL_HN", "LH_HN", "RL_HN", "RH_HN", "LL_HNC", "LH_HNC", "RL_HNC", "RH_HNC"))
-
+'''
 ######################## User Defined FIltering Function ########################
     '''schema = StructType([
         StructField("ID", StringType()),
-        StructField("HN", IntegerType()),
-        StructField("boro", IntegerType()),
-        StructField("Year", StringType()),
+        StructField("House Number", IntegerType()),
+        StructField("County", IntegerType()),
+        StructField("Date", StringType()),
         StructField("SN", StringType())
-    ])
+    ])'''
 
+    schema = StructType([
+            StructField("ID", StringType()),
+            StructField("House Number", IntegerType())
+            #StructField("County", IntegerType()),
+            #StructField("Date", StringType()),
+            #StructField("SN", StringType())
+        ])
     @pandas_udf(schema, functionType=PandasUDFType.GROUPED_MAP)
     def match(df):
         ncond1 = df["House Number"] != None
@@ -168,26 +176,31 @@ def main(sc):
         ncond9 = df["RL_HNC"] != None
         ncond10 = df["RH_HNC"] != None
 
-        cond4 = (ncond1 and (df["House Number"] % 2 == 1))
-        cond5 = (ncond1 and ncond3 and ncond4 and (df["House Number"] >= df["LL_HN"]) and (df["House Number"] <= df["LH_HN"]))
-        cond6 = (ncond1 and (df["House Number"] % 2 == 0))
-        cond7 = (ncond1 and ncond5 and ncond6 and (df["House Number"] >= df["RL_HN"]) and (df["House Number"] <= df["RH_HN"]))
-        cond8 = cond4 and cond5
-        cond9 = cond6 and cond7
+        cond4 = (ncond1 & (df["House Number"] % 2 == 1))
+        cond5 = (ncond1 & ncond3 & ncond4 & (df["House Number"] >= df["LL_HN"]) & (df["House Number"] <= df["LH_HN"]))
+        cond6 = (ncond1 & (df["House Number"] % 2 == 0))
+        cond7 = (ncond1 & ncond5 & ncond6 & (df["House Number"] >= df["RL_HN"]) & (df["House Number"] <= df["RH_HN"]))
+        cond8 = cond4 & cond5
+        cond9 = cond6 & cond7
 
         hnc_cond1 = (df["HN Compound"] != None)
         hnc_cond2 = (df["HN Compound"] == None)
-        hnc_cond3 = (ncond2 and ncond7 and ncond8 and (df["HN Compound"] >= df["LL_HNC"]) and (df["HN Compound"] <= df["LH_HNC"]))
-        hnc_cond4 = (ncond2 and ncond9 and ncond10 and (df["HN Compound"] >= df["RL_HNC"]) and (df["HN Compound"] <= df["RH_HNC"]))
+        hnc_cond3 = (ncond2 & ncond7 & ncond8 & (df["HN Compound"] >= df["LL_HNC"]) & (df["HN Compound"] <= df["LH_HNC"]))
+        hnc_cond4 = (ncond2 & ncond9 & ncond10 & (df["HN Compound"] >= df["RL_HNC"]) & (df["HN Compound"] <= df["RH_HNC"]))
 
 
-        cond10 = (hnc_cond2 and (cond8|cond9))
-        cond11 = (hnc_cond1 and (cond8|cond9) and (hnc_cond3|hnc_cond4))
+        cond10 = (hnc_cond2 & (cond8|cond9))
+        cond11 = (hnc_cond1 & (cond8|cond9) & (hnc_cond3|hnc_cond4))
         filtered = df.loc[(cond10|cond11)]
-        return filtered.loc[['ID', 'House Number', 'County', 'Date', 'SN']]
+        #print(filtered.head())
+        if filtered.empty:
+            return pd.DataFrame({'ID': pd.Series([], dtype='str'),
+                                'House Number' : pd.Series([], dtype='int')})
+        #return filtered[['ID', 'House Number', 'County', 'Date', 'SN']]
+        return filtered[['ID', 'House Number']]
 
 
-    filtered = joined.groupby("Street Name").apply(match).collect()'''
+    filtered = joined.groupby("Street Name", "County").apply(match).collect()
 
 ######################## Post Processing ########################
     '''filtered = filtered.select(col('ID'), col('Date'), col('SN'))
