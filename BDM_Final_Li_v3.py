@@ -15,7 +15,7 @@ def writeToCSV(row):
 def main(sc):
     spark = SparkSession(sc)
     sqlContext = SQLContext(sc)
-
+######################## Read Parking Violation Records ########################
     years = ['2015', '2016', '2017', '2018', '2019']
     def parseCSV(idx, part):
         if idx==0:
@@ -28,8 +28,8 @@ def main(sc):
             else:
                 yield(p[23], '', p[24].lower(), p[21], p[4][-4:], p[0])
 
-    rows = sc.textFile('/data/share/bdm/nyc_parking_violation/*.csv', use_unicode=True).mapPartitionsWithIndex(parseCSV)
-    #rows = sc.textFile('Parking_Violations_Issued_2015_simplified.csv').mapPartitionsWithIndex(parseCSV)
+    #rows = sc.textFile('/data/share/bdm/nyc_parking_violation/*.csv', use_unicode=True).mapPartitionsWithIndex(parseCSV)
+    rows = sc.textFile('Parking_Violations_Issued_2015_simplified.csv').mapPartitionsWithIndex(parseCSV)
 
     df = sqlContext.createDataFrame(rows, ('House Number', 'HN Compound', 'Street Name', 'County', 'Date', 'SN'))
 
@@ -66,6 +66,7 @@ def main(sc):
     df = df.withColumn("House Number", df["House Number"].cast('int'))
     df = df.withColumn("HN Compound", df["HN Compound"].cast('int'))
 
+######################## Read NYC Street Data ########################
     def parseCL(idx, part):
         if idx==0:
             next(part)
@@ -91,9 +92,9 @@ def main(sc):
                 RH_HNC = p[5].split('-')[1]
             yield(p[0], p[28].lower(), p[10].lower(), p[13], LL_HN, LL_HNC, LH_HN, LH_HNC, RL_HN, RL_HNC, RH_HN, RH_HNC)
 
-    #rows = sc.textFile('nyc_cscl.csv').mapPartitionsWithIndex(parseCL)
+    rows = sc.textFile('nyc_cscl.csv').mapPartitionsWithIndex(parseCL)
 
-    rows = sc.textFile('/data/share/bdm/nyc_cscl.csv', use_unicode=True).mapPartitionsWithIndex(parseCL)
+    #rows = sc.textFile('/data/share/bdm/nyc_cscl.csv', use_unicode=True).mapPartitionsWithIndex(parseCL)
     centerline = sqlContext.createDataFrame(rows, ('ID', 'full street', 'st label', 'borocode', 'LL_HN', 'LL_HNC', 'LH_HN', 'LH_HNC', 'RL_HN', 'RL_HNC', 'RH_HN', 'RH_HNC'))
     centerline = centerline.withColumn("LL_HN", centerline["LL_HN"].cast('int'))
     centerline = centerline.withColumn("LH_HN", centerline["LH_HN"].cast('int'))
@@ -105,12 +106,13 @@ def main(sc):
     centerline = centerline.withColumn("RH_HNC", centerline["RH_HNC"].cast('int'))
     print('Data loaded')
 
+######################## Join Two Datasets ########################
     cond1 = (df['Street Name'] == centerline['full street'])
     cond2 = (df['Street Name'] == centerline['st label'])
     cond3 = (df['County'] == centerline['borocode'])
     joined = df.join(centerline, (cond3 & (cond1|cond2)), how="inner")
 
-    '''def match(HN, HNC, LL_HN, LH_HN, RL_HN, RH_HN, LL_HNC, LH_HNC, RL_HNC, RH_HNC):
+    def match(HN, HNC, LL_HN, LH_HN, RL_HN, RH_HN, LL_HNC, LH_HNC, RL_HNC, RH_HNC):
         ncond1 = HN != None
         ncond2 = HNC != None
         ncond3 = LL_HN != None
@@ -141,9 +143,10 @@ def main(sc):
 
     filter_udf = udf(match, returnType=BooleanType())
 
-    filtered = joined.filter(filter_udf("House Number", "HN Compound", "LL_HN", "LH_HN", "RL_HN", "RH_HN", "LL_HNC", "LH_HNC", "RL_HNC", "RH_HNC"))'''
+    filtered = joined.filter(filter_udf("House Number", "HN Compound", "LL_HN", "LH_HN", "RL_HN", "RH_HN", "LL_HNC", "LH_HNC", "RL_HNC", "RH_HNC"))
 
-    schema = StructType([
+######################## User Defined FIltering Function ########################
+    '''schema = StructType([
         StructField("ID", StringType()),
         StructField("HN", IntegerType()),
         StructField("boro", IntegerType()),
@@ -153,28 +156,28 @@ def main(sc):
 
     @pandas_udf(schema, functionType=PandasUDFType.GROUPED_MAP)
     def match(df):
-        ncond1 = HN != None
-        ncond2 = HNC != None
-        ncond3 = LL_HN != None
-        ncond4 = LH_HN != None
-        ncond5 = RL_HN != None
-        ncond6 = RH_HN != None
-        ncond7 = LL_HNC != None
-        ncond8 = LH_HNC != None
-        ncond9 = RL_HNC != None
-        ncond10 = RH_HNC != None
+        ncond1 = df["House Number"] != None
+        ncond2 = df["HN Compound"] != None
+        ncond3 = df["LL_HN"] != None
+        ncond4 = df["LH_HN"] != None
+        ncond5 = df["RL_HN"] != None
+        ncond6 = df["RH_HN"] != None
+        ncond7 = df["LL_HNC"] != None
+        ncond8 = df["LH_HNC"] != None
+        ncond9 = df["RL_HNC"] != None
+        ncond10 = df["RH_HNC"] != None
 
-        cond4 = (ncond1 and (HN % 2 == 1))
-        cond5 = (ncond1 and ncond3 and ncond4 and (HN >= LL_HN) and (HN <= LH_HN))
-        cond6 = (ncond1 and (HN % 2 == 0))
-        cond7 = (ncond1 and ncond5 and ncond6 and (HN >= RL_HN) and (HN <= RH_HN))
+        cond4 = (ncond1 and (df["House Number"] % 2 == 1))
+        cond5 = (ncond1 and ncond3 and ncond4 and (df["House Number"] >= df["LL_HN"]) and (df["House Number"] <= df["LH_HN"]))
+        cond6 = (ncond1 and (df["House Number"] % 2 == 0))
+        cond7 = (ncond1 and ncond5 and ncond6 and (df["House Number"] >= df["RL_HN"]) and (df["House Number"] <= df["RH_HN"]))
         cond8 = cond4 and cond5
         cond9 = cond6 and cond7
 
-        hnc_cond1 = (HNC != None)
-        hnc_cond2 = (HNC == None)
-        hnc_cond3 = (ncond2 and ncond7 and ncond8 and (HNC >= LL_HNC) and (HNC <= LH_HNC))
-        hnc_cond4 = (ncond2 and ncond9 and ncond10 and (HNC >= RL_HNC) and (HNC <= RH_HNC))
+        hnc_cond1 = (df["HN Compound"] != None)
+        hnc_cond2 = (df["HN Compound"] == None)
+        hnc_cond3 = (ncond2 and ncond7 and ncond8 and (df["HN Compound"] >= df["LL_HNC"]) and (df["HN Compound"] <= df["LH_HNC"]))
+        hnc_cond4 = (ncond2 and ncond9 and ncond10 and (df["HN Compound"] >= df["RL_HNC"]) and (df["HN Compound"] <= df["RH_HNC"]))
 
 
         cond10 = (hnc_cond2 and (cond8|cond9))
@@ -183,9 +186,10 @@ def main(sc):
         return filtered.loc[['ID', 'House Number', 'County', 'Date', 'SN']]
 
 
-    filtered = joined.groupby("Street Name").apply(match).collect()
+    filtered = joined.groupby("Street Name").apply(match).collect()'''
 
-    filtered = filtered.select(col('ID'), col('Date'), col('SN'))
+######################## Post Processing ########################
+    '''filtered = filtered.select(col('ID'), col('Date'), col('SN'))
     filtered = filtered.dropDuplicates(['ID', 'SN'])
     count_df = filtered.groupBy(['ID']).pivot('Date').count().drop('Date')
 
@@ -200,7 +204,8 @@ def main(sc):
     ols_func = sum(diff*(y - col('avg')) for diff, y in zip(diff_x, marksColumns))/10
     coef = result.withColumn("OLS_COEF", ols_func).drop('avg')
 
-    coef.rdd.map(writeToCSV).saveAsTextFile(sys.argv[1])
+    coef.rdd.map(writeToCSV).saveAsTextFile(sys.argv[1])'''
+    filtered.rdd.map(writeToCSV).saveAsTextFile(sys.argv[1])
 
 if __name__=="__main__":
     sc = SparkContext()
