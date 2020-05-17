@@ -18,17 +18,18 @@ def main(sc):
 
     years = ['2015', '2016', '2017', '2018', '2019']
     def parseCSV(idx, part):
-    if idx==0:
-        next(part)
-    for p in csv.reader(part):
-        if p[23].isalpha() or p[24] == '' or p[21] == '' or p[23] == '' or p[4][-4:] not in years:
-            continue
-        if '-' in p[23]:
-            yield(p[23].split('-')[0], p[23].split('-')[1], p[24].lower(), p[21], p[4][-4:], p[0])
-        else:
-            yield(p[23], '', p[24].lower(), p[21], p[4][-4:], p[0])
+        if idx==0:
+            next(part)
+        for p in csv.reader(part):
+            if p[23].isalpha() or p[24] == '' or p[21] == '' or p[23] == '' or p[4][-4:] not in years:
+                continue
+            if '-' in p[23]:
+                yield(p[23].split('-')[0], p[23].split('-')[1], p[24].lower(), p[21], p[4][-4:], p[0])
+            else:
+                yield(p[23], '', p[24].lower(), p[21], p[4][-4:], p[0])
 
-    rows = sc.textFile('/data/share/bdm/nyc_parking_violation/*.csv', use_unicode=True).mapPartitionsWithIndex(parseCSV)
+    #rows = sc.textFile('/data/share/bdm/nyc_parking_violation/*.csv', use_unicode=True).mapPartitionsWithIndex(parseCSV)
+    rows = sc.textFile('Parking_Violations_Issued_2015_simplified.csv').mapPartitionsWithIndex(parseCSV)
 
     df = sqlContext.createDataFrame(rows, ('House Number', 'HN Compound', 'Street Name', 'County', 'Date', 'SN'))
 
@@ -70,9 +71,9 @@ def main(sc):
             next(part)
         for p in csv.reader(part):
             LL_HN = p[2]
-            LL_HNC = ''
+            LL_HNC = None
             LH_HN = p[3]
-            LH_HNC = ''
+            LH_HNC = None
             if '-' in p[2] and '-' in p[3]:
                 LL_HN = p[2].split('-')[0]
                 LL_HNC = p[2].split('-')[1]
@@ -90,8 +91,9 @@ def main(sc):
                 RH_HNC = p[5].split('-')[1]
             yield(p[0], p[28].lower(), p[10].lower(), p[13], LL_HN, LL_HNC, LH_HN, LH_HNC, RL_HN, RL_HNC, RH_HN, RH_HNC)
 
-    rows = sc.textFile('/data/share/bdm/nyc_cscl.csv', use_unicode=True).mapPartitionsWithIndex(parseCL)
+    #rows = sc.textFile('nyc_cscl.csv').mapPartitionsWithIndex(parseCL)
 
+    rows = sc.textFile('nyc_cscl.csv').mapPartitionsWithIndex(parseCL)
     centerline = sqlContext.createDataFrame(rows, ('ID', 'full street', 'st label', 'borocode', 'LL_HN', 'LL_HNC', 'LH_HN', 'LH_HNC', 'RL_HN', 'RL_HNC', 'RH_HN', 'RH_HNC'))
     centerline = centerline.withColumn("LL_HN", centerline["LL_HN"].cast('int'))
     centerline = centerline.withColumn("LH_HN", centerline["LH_HN"].cast('int'))
@@ -102,6 +104,7 @@ def main(sc):
     centerline = centerline.withColumn("RL_HNC", centerline["RL_HNC"].cast('int'))
     centerline = centerline.withColumn("RH_HNC", centerline["RH_HNC"].cast('int'))
     print('Data loaded')
+
     cond1 = (df['Street Name'] == centerline['full street'])
     cond2 = (df['Street Name'] == centerline['st label'])
     cond3 = (df['County'] == centerline['borocode'])
