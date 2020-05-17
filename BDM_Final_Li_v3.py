@@ -1,4 +1,4 @@
-from pyspark import SparkContext
+from pyspark import SparkContext, SparkConf
 from pyspark.sql.session import SparkSession
 from pyspark.sql import SQLContext
 import pyspark.sql.functions as func
@@ -10,6 +10,9 @@ from pyspark.sql.functions import udf
 from pyspark.sql.types import *
 import sys
 import pandas as pd
+import os
+
+os.environ["ARROW_PRE_0_15_IPC_FORMAT"] = "1"
 
 def writeToCSV(row):
     return ', '.join(str(item) for item in row)
@@ -31,7 +34,7 @@ def main(sc):
                 yield(p[23], '', p[24].lower(), p[21], p[4][-4:], p[0])
 
     rows = sc.textFile('/data/share/bdm/nyc_parking_violation/*.csv', use_unicode=True).mapPartitionsWithIndex(parseCSV)
-    #rows = sc.textFile('Parking_Violations_Issued_2015_simplified.csv').mapPartitionsWithIndex(parseCSV)
+    #rows = sc.textFile('Parking_Violations_Issued_201[5-9]_simplified.csv').mapPartitionsWithIndex(parseCSV)
 
     df = sqlContext.createDataFrame(rows, ('House Number', 'HN Compound', 'Street Name', 'County', 'Date', 'SN'))
 
@@ -192,15 +195,16 @@ def main(sc):
         cond10 = (hnc_cond2 & (cond8|cond9))
         cond11 = (hnc_cond1 & (cond8|cond9) & (hnc_cond3|hnc_cond4))
         filtered = df.loc[(cond10|cond11)]
-        #print(filtered.head())
         if filtered.empty:
             return pd.DataFrame({'ID': pd.Series([], dtype='str'),
                                 'House Number' : pd.Series([], dtype='int')})
         #return filtered[['ID', 'House Number', 'County', 'Date', 'SN']]
+        #print(filtered[['ID', 'House Number']].head())
         return filtered[['ID', 'House Number']]
 
 
-    filtered = joined.groupby("Street Name", "County").apply(match).collect()
+    filtered = joined.groupby("Street Name", "County").apply(match).show()
+    #print(filtered)
 
 ######################## Post Processing ########################
     '''filtered = filtered.select(col('ID'), col('Date'), col('SN'))
@@ -219,7 +223,7 @@ def main(sc):
     coef = result.withColumn("OLS_COEF", ols_func).drop('avg')
 
     coef.rdd.map(writeToCSV).saveAsTextFile(sys.argv[1])'''
-    filtered.rdd.map(writeToCSV).saveAsTextFile(sys.argv[1])
+    #filtered.rdd.map(writeToCSV).saveAsTextFile(sys.argv[1])
 
 if __name__=="__main__":
     sc = SparkContext()
