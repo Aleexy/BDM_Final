@@ -28,8 +28,8 @@ def main(sc):
             else:
                 yield(p[23], '', p[24].lower(), p[21], p[4][-4:], p[0])
 
-    #rows = sc.textFile('/data/share/bdm/nyc_parking_violation/*.csv', use_unicode=True).mapPartitionsWithIndex(parseCSV)
-    rows = sc.textFile('Parking_Violations_Issued_2015_simplified.csv').mapPartitionsWithIndex(parseCSV)
+    rows = sc.textFile('/data/share/bdm/nyc_parking_violation/*.csv', use_unicode=True).mapPartitionsWithIndex(parseCSV)
+    #rows = sc.textFile('Parking_Violations_Issued_2015_simplified.csv').mapPartitionsWithIndex(parseCSV)
 
     df = sqlContext.createDataFrame(rows, ('House Number', 'HN Compound', 'Street Name', 'County', 'Date', 'SN'))
 
@@ -93,7 +93,7 @@ def main(sc):
 
     #rows = sc.textFile('nyc_cscl.csv').mapPartitionsWithIndex(parseCL)
 
-    rows = sc.textFile('nyc_cscl.csv').mapPartitionsWithIndex(parseCL)
+    rows = sc.textFile('/data/share/bdm/nyc_cscl.csv', use_unicode=True).mapPartitionsWithIndex(parseCL)
     centerline = sqlContext.createDataFrame(rows, ('ID', 'full street', 'st label', 'borocode', 'LL_HN', 'LL_HNC', 'LH_HN', 'LH_HNC', 'RL_HN', 'RL_HNC', 'RH_HN', 'RH_HNC'))
     centerline = centerline.withColumn("LL_HN", centerline["LL_HN"].cast('int'))
     centerline = centerline.withColumn("LH_HN", centerline["LH_HN"].cast('int'))
