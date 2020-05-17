@@ -110,7 +110,7 @@ def main(sc):
     cond3 = (df['County'] == centerline['borocode'])
     joined = df.join(centerline, (cond3 & (cond1|cond2)), how="inner")
 
-    def match(HN, HNC, LL_HN, LH_HN, RL_HN, RH_HN, LL_HNC, LH_HNC, RL_HNC, RH_HNC):
+    '''def match(HN, HNC, LL_HN, LH_HN, RL_HN, RH_HN, LL_HNC, LH_HNC, RL_HNC, RH_HNC):
         ncond1 = HN != None
         ncond2 = HNC != None
         ncond3 = LL_HN != None
@@ -141,7 +141,49 @@ def main(sc):
 
     filter_udf = udf(match, returnType=BooleanType())
 
-    filtered = joined.filter(filter_udf("House Number", "HN Compound", "LL_HN", "LH_HN", "RL_HN", "RH_HN", "LL_HNC", "LH_HNC", "RL_HNC", "RH_HNC"))
+    filtered = joined.filter(filter_udf("House Number", "HN Compound", "LL_HN", "LH_HN", "RL_HN", "RH_HN", "LL_HNC", "LH_HNC", "RL_HNC", "RH_HNC"))'''
+
+    schema = StructType([
+        StructField("PhysicalID", StringType()),
+        StructField("HN", IntegerType()),
+        StructField("boro", IntegerType()),
+        StructField("Year", StringType()),
+        StructField("SN", StringType())
+    ])
+
+    @pandas_udf(schema, functionType=PandasUDFType.GROUPED_MAP)
+    def match(df):
+        ncond1 = HN != None
+        ncond2 = HNC != None
+        ncond3 = LL_HN != None
+        ncond4 = LH_HN != None
+        ncond5 = RL_HN != None
+        ncond6 = RH_HN != None
+        ncond7 = LL_HNC != None
+        ncond8 = LH_HNC != None
+        ncond9 = RL_HNC != None
+        ncond10 = RH_HNC != None
+
+        cond4 = (ncond1 and (HN % 2 == 1))
+        cond5 = (ncond1 and ncond3 and ncond4 and (HN >= LL_HN) and (HN <= LH_HN))
+        cond6 = (ncond1 and (HN % 2 == 0))
+        cond7 = (ncond1 and ncond5 and ncond6 and (HN >= RL_HN) and (HN <= RH_HN))
+        cond8 = cond4 and cond5
+        cond9 = cond6 and cond7
+
+        hnc_cond1 = (HNC != None)
+        hnc_cond2 = (HNC == None)
+        hnc_cond3 = (ncond2 and ncond7 and ncond8 and (HNC >= LL_HNC) and (HNC <= LH_HNC))
+        hnc_cond4 = (ncond2 and ncond9 and ncond10 and (HNC >= RL_HNC) and (HNC <= RH_HNC))
+
+
+        cond10 = (hnc_cond2 and (cond8|cond9))
+        cond11 = (hnc_cond1 and (cond8|cond9) and (hnc_cond3|hnc_cond4))
+        return pd.loc[(cond10|cond11)]
+
+
+    filtered = joined.groupby("Street Name").apply(match).collect()
+
     filtered = filtered.select(col('ID'), col('Date'), col('SN'))
     filtered = filtered.dropDuplicates(['ID', 'SN'])
     count_df = filtered.groupBy(['ID']).pivot('Date').count().drop('Date')
