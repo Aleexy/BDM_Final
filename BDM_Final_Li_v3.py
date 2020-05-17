@@ -144,7 +144,7 @@ def main(sc):
     filtered = joined.filter(filter_udf("House Number", "HN Compound", "LL_HN", "LH_HN", "RL_HN", "RH_HN", "LL_HNC", "LH_HNC", "RL_HNC", "RH_HNC"))'''
 
     schema = StructType([
-        StructField("PhysicalID", StringType()),
+        StructField("ID", StringType()),
         StructField("HN", IntegerType()),
         StructField("boro", IntegerType()),
         StructField("Year", StringType()),
@@ -179,7 +179,8 @@ def main(sc):
 
         cond10 = (hnc_cond2 and (cond8|cond9))
         cond11 = (hnc_cond1 and (cond8|cond9) and (hnc_cond3|hnc_cond4))
-        return pd.loc[(cond10|cond11)]
+        filtered = df.loc[(cond10|cond11)]
+        return filtered.loc[['ID', 'House Number', 'County', 'Date', 'SN']]
 
 
     filtered = joined.groupby("Street Name").apply(match).collect()
