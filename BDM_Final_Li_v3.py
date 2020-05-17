@@ -8,6 +8,7 @@ from pyspark.sql.functions import pandas_udf
 from pyspark.sql.functions import PandasUDFType
 from pyspark.sql.functions import udf
 from pyspark.sql.types import *
+import sys
 
 def writeToCSV(row):
     return ', '.join(str(item) for item in row)
