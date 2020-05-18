@@ -19,6 +19,7 @@ def writeToCSV(row):
 
 def main(sc):
     spark = SparkSession(sc)
+    spark.conf.set("spark.sql.execution.arrow.enabled", "true")
     sqlContext = SQLContext(sc)
 ######################## Read Parking Violation Records ########################
     years = ['2015', '2016', '2017', '2018', '2019']
@@ -201,6 +202,7 @@ def main(sc):
         #return filtered[['ID', 'House Number', 'County', 'Date', 'SN']]
         #print(filtered[['ID', 'House Number']].head())
         return filtered[['ID', 'House Number']]
+
 
 
     filtered = joined.groupby("Street Name", "County").apply(match).show()
