@@ -4,35 +4,108 @@ from pyspark.sql import SQLContext
 import pyspark.sql.functions as func
 from pyspark.sql.functions import col, when
 import csv
-from pyspark.sql.functions import pandas_udf
-from pyspark.sql.functions import PandasUDFType
-from pyspark.sql.functions import udf
 from pyspark.sql.types import *
 import sys
-import pandas as pd
-import os
 
-os.environ["ARROW_PRE_0_15_IPC_FORMAT"] = "1"
 
 def writeToCSV(row):
     return ', '.join(str(item) for item in row)
+
+
+def parseCSV(idx, part):
+    years = ['2015', '2016', '2017', '2018', '2019']
+    if idx==0:
+        next(part)
+    for p in csv.reader(part):
+        if p[23].isalpha() or p[24] == '' or p[21] == '' or p[23] == '' or p[4][-4:] not in years:
+            continue
+        if '-' in p[23]:
+            yield(p[23].split('-')[0], p[23].split('-')[1], p[24].lower(), p[21], p[4][-4:], p[0])
+        else:
+            yield(p[23], '', p[24].lower(), p[21], p[4][-4:], p[0])
+
+
+def parseCL(idx, part):
+    if idx==0:
+        next(part)
+    for p in csv.reader(part):
+        LL_HN = p[2]
+        LL_HNC = None
+        LH_HN = p[3]
+        LH_HNC = None
+        if '-' in p[2] and '-' in p[3]:
+            LL_HN = p[2].split('-')[0]
+            LL_HNC = p[2].split('-')[1]
+            LH_HN = p[3].split('-')[0]
+            LH_HNC = p[3].split('-')[1]
+
+        RL_HN = p[4]
+        RL_HNC = ''
+        RH_HN = p[5]
+        RH_HNC = ''
+        if '-' in p[4] and '-' in p[5]:
+            RL_HN = p[4].split('-')[0]
+            RL_HNC = p[4].split('-')[1]
+            RH_HN = p[5].split('-')[0]
+            RH_HNC = p[5].split('-')[1]
+        yield(p[0], p[28].lower(), p[10].lower(), p[13], LL_HN, LL_HNC, LH_HN, LH_HNC, RL_HN, RL_HNC, RH_HN, RH_HNC)
+
+
+def filter_udf(row):
+    match = False
+    HN = row[0]
+    LL_HN = row[10]
+    LH_HN = row[12]
+    RL_HN = row[14]
+    RH_HN = row[16]
+
+    HNC = row[1]
+    LL_HNC = row[11]
+    LH_HNC = row[13]
+    RL_HNC = row[15]
+    RH_HNC = row[17]
+
+    if HN != None:
+        if HN%2==1:
+            if LL_HN != None and LH_HN != None:
+                if HN >= LL_HN and HN <= LH_HN:
+                    if HNC != None:
+                        if LL_HNC != None and LH_HNC != None:
+                            if HNC >= LL_HNC and HN <= LH_HNC:
+                                match = True
+                    else:
+                        match = True
+        else:
+            if RL_HN != None and RH_HN != None:
+                if HN >= RL_HN and HN <= RH_HN:
+                    if HNC != None:
+                        if RL_HNC != None and RH_HNC != None:
+                            if HNC >= RL_HNC and HN <= RH_HNC:
+                                match = True
+                    else:
+                        match = True
+    if match:
+        return row
+    return
+
+def map_year(row):
+    if row[1] == '2015':
+        return (row[0], (1, 0, 0, 0, 0))
+    elif row[1] == '2016':
+        return (row[0], (0, 1, 0, 0, 0))
+    elif row[1] == '2017':
+        return (row[0], (0, 0, 1, 0, 0))
+    elif row[1] == '2018':
+        return (row[0], (0, 0, 0, 1, 0))
+    elif row[1] == '2019':
+        return (row[0], (0, 0, 0, 0, 1))
+    return
 
 def main(sc):
     spark = SparkSession(sc)
     spark.conf.set("spark.sql.execution.arrow.enabled", "true")
     sqlContext = SQLContext(sc)
-######################## Read Parking Violation Records ########################
-    years = ['2015', '2016', '2017', '2018', '2019']
-    def parseCSV(idx, part):
-        if idx==0:
-            next(part)
-        for p in csv.reader(part):
-            if p[23].isalpha() or p[24] == '' or p[21] == '' or p[23] == '' or p[4][-4:] not in years:
-                continue
-            if '-' in p[23]:
-                yield(p[23].split('-')[0], p[23].split('-')[1], p[24].lower(), p[21], p[4][-4:], p[0])
-            else:
-                yield(p[23], '', p[24].lower(), p[21], p[4][-4:], p[0])
+######################## Read Parking Violation Records #######################
 
     rows = sc.textFile('/data/share/bdm/nyc_parking_violation/*.csv', use_unicode=True).mapPartitionsWithIndex(parseCSV)
     #rows = sc.textFile('Parking_Violations_Issued_201[5-9]_simplified.csv').mapPartitionsWithIndex(parseCSV)
@@ -73,30 +146,6 @@ def main(sc):
     df = df.withColumn("HN Compound", df["HN Compound"].cast('int'))
 
 ######################## Read NYC Street Data ########################
-    def parseCL(idx, part):
-        if idx==0:
-            next(part)
-        for p in csv.reader(part):
-            LL_HN = p[2]
-            LL_HNC = None
-            LH_HN = p[3]
-            LH_HNC = None
-            if '-' in p[2] and '-' in p[3]:
-                LL_HN = p[2].split('-')[0]
-                LL_HNC = p[2].split('-')[1]
-                LH_HN = p[3].split('-')[0]
-                LH_HNC = p[3].split('-')[1]
-
-            RL_HN = p[4]
-            RL_HNC = ''
-            RH_HN = p[5]
-            RH_HNC = ''
-            if '-' in p[4] and '-' in p[5]:
-                RL_HN = p[4].split('-')[0]
-                RL_HNC = p[4].split('-')[1]
-                RH_HN = p[5].split('-')[0]
-                RH_HNC = p[5].split('-')[1]
-            yield(p[0], p[28].lower(), p[10].lower(), p[13], LL_HN, LL_HNC, LH_HN, LH_HNC, RL_HN, RL_HNC, RH_HN, RH_HNC)
 
     #rows = sc.textFile('nyc_cscl.csv').mapPartitionsWithIndex(parseCL)
 
@@ -152,80 +201,32 @@ def main(sc):
     filtered = joined.filter(filter_udf("House Number", "HN Compound", "LL_HN", "LH_HN", "RL_HN", "RH_HN", "LL_HNC", "LH_HNC", "RL_HNC", "RH_HNC"))
 '''
 ######################## User Defined FIltering Function ########################
-    '''schema = StructType([
-        StructField("ID", StringType()),
-        StructField("House Number", IntegerType()),
-        StructField("County", IntegerType()),
-        StructField("Date", StringType()),
-        StructField("SN", StringType())
-    ])'''
-
-    schema = StructType([
-            StructField("ID", StringType()),
-            StructField("House Number", IntegerType())
-            #StructField("County", IntegerType()),
-            #StructField("Date", StringType()),
-            #StructField("SN", StringType())
-        ])
-    @pandas_udf(schema, functionType=PandasUDFType.GROUPED_MAP)
-    def match(df):
-        ncond1 = df["House Number"] != None
-        ncond2 = df["HN Compound"] != None
-        ncond3 = df["LL_HN"] != None
-        ncond4 = df["LH_HN"] != None
-        ncond5 = df["RL_HN"] != None
-        ncond6 = df["RH_HN"] != None
-        ncond7 = df["LL_HNC"] != None
-        ncond8 = df["LH_HNC"] != None
-        ncond9 = df["RL_HNC"] != None
-        ncond10 = df["RH_HNC"] != None
-
-        cond4 = (ncond1 & (df["House Number"] % 2 == 1))
-        cond5 = (ncond1 & ncond3 & ncond4 & (df["House Number"] >= df["LL_HN"]) & (df["House Number"] <= df["LH_HN"]))
-        cond6 = (ncond1 & (df["House Number"] % 2 == 0))
-        cond7 = (ncond1 & ncond5 & ncond6 & (df["House Number"] >= df["RL_HN"]) & (df["House Number"] <= df["RH_HN"]))
-        cond8 = cond4 & cond5
-        cond9 = cond6 & cond7
-
-        hnc_cond1 = (df["HN Compound"] != None)
-        hnc_cond2 = (df["HN Compound"] == None)
-        hnc_cond3 = (ncond2 & ncond7 & ncond8 & (df["HN Compound"] >= df["LL_HNC"]) & (df["HN Compound"] <= df["LH_HNC"]))
-        hnc_cond4 = (ncond2 & ncond9 & ncond10 & (df["HN Compound"] >= df["RL_HNC"]) & (df["HN Compound"] <= df["RH_HNC"]))
-
-
-        cond10 = (hnc_cond2 & (cond8|cond9))
-        cond11 = (hnc_cond1 & (cond8|cond9) & (hnc_cond3|hnc_cond4))
-        filtered = df.loc[(cond10|cond11)]
-        if filtered.empty:
-            return pd.DataFrame({'ID': pd.Series([], dtype='str'),
-                                'House Number' : pd.Series([], dtype='int')})
-        #return filtered[['ID', 'House Number', 'County', 'Date', 'SN']]
-        #print(filtered[['ID', 'House Number']].head())
-        return filtered[['ID', 'House Number']]
 
 
 
-    filtered = joined.groupby("Street Name", "County").apply(match).show()
-    #print(filtered)
+    filtered = joined.rdd.filter(filter_udf)
+    filtered = filtered.map(lambda x: (x[5], x[6], x[4])).toDF(["SN","ID","Date"])
 
-######################## Post Processing ########################
-    '''filtered = filtered.select(col('ID'), col('Date'), col('SN'))
-    filtered = filtered.dropDuplicates(['ID', 'SN'])
-    count_df = filtered.groupBy(['ID']).pivot('Date').count().drop('Date')
+    filtered = filtered.dropDuplicates(['ID', 'SN']).drop('SN')
 
-    allID = centerline.select(col('ID')).dropDuplicates()
-    result = allID.join(count_df, on=["ID"], how='outer').na.fill(0)
+    count_rdd = filtered.rdd.map(map_year).reduceByKey(lambda x, y: (x[0]+y[0], x[1]+y[1], x[2]+y[2], x[3]+y[3], x[4]+y[4]))
 
-    marksColumns = [col('2015'), col('2016'), col('2017'), col('2018'), col('2019')]
+    count_rdd = count_rdd.map(lambda x: (x[0], x[1][0], x[1][1], x[1][2], x[1][3], x[1][4]))
+    count_df = count_rdd.toDF(['PHYSICALID', 'COUNT_2015', 'COUNT_2016', 'COUNT_2017', 'COUNT_2018', 'COUNT_2019'])
+
+
+    allID = centerline.select(col('ID').alias('PHYSICALID')).dropDuplicates()
+    result = allID.join(count_df, on=['PHYSICALID'], how='outer').na.fill(0)
+
+    marksColumns = [col('COUNT_2015'), col('COUNT_2016'), col('COUNT_2017'), col('COUNT_2018'), col('COUNT_2019')]
     diff_x = [-2, -1, 0, 1, 2]
 
     average_func = sum(x for x in marksColumns)/len(marksColumns)
     result = result.withColumn("avg", average_func)
     ols_func = sum(diff*(y - col('avg')) for diff, y in zip(diff_x, marksColumns))/10
     coef = result.withColumn("OLS_COEF", ols_func).drop('avg')
-
-    coef.rdd.map(writeToCSV).saveAsTextFile(sys.argv[1])'''
-    #filtered.rdd.map(writeToCSV).saveAsTextFile(sys.argv[1])
+    #coef.show()
+    coef.rdd.map(writeToCSV).saveAsTextFile(sys.argv[1])
 
 if __name__=="__main__":
     sc = SparkContext()
