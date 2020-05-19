@@ -36,7 +36,7 @@ def parse_violation(idx, part):
         if '-' in p[23]:
             yield(p[23].split('-')[0], p[23].split('-')[1], p[24].lower(), to_borocode(p[21]), p[4][-4:], p[0])
         else:
-            yield(p[23], None, p[24].lower(), to_borocode(p[21]), p[4][-4:], p[0])
+            yield(p[23], '', p[24].lower(), to_borocode(p[21]), p[4][-4:], p[0])
 
 
 def parseCL(idx, part):
@@ -83,7 +83,7 @@ def filter_right_HN(x):
     return (HN>=L and HN<=H)
 
 def filter_c(x):
-    if x[1][0] and x[1][0].isdecimal():
+    if x[1][0].isdecimal():
         if x[1][1].isdecimal() and x[1][2].isdecimal():
             C = int(x[1][0])
             L = int(x[1][1])
@@ -114,7 +114,7 @@ def main(sc):
     centerline = sc.textFile('/data/share/bdm/nyc_cscl.csv', use_unicode=True).mapPartitionsWithIndex(parseCL)
     centerline = centerline.map(lambda x: (x[3], (x[0], x[1], x[2], x[4], x[5], x[6], x[7], x[8], x[9], x[10], x[11])))
 
-    joined = centerline.join(violations).filter(lambda x: (x[1][0][1] == x[1][1][2] or x[1][0][2] == x[1][1][2]))
+    joined = centerline.join(violations).filter(lambda x: (x[1][1][0] and (x[1][0][1] == x[1][1][2] or x[1][0][2] == x[1][1][2])))
     joined = joined.map(lambda x: ((x[1][0][0], x[1][1][0]),
                                (x[1][1][1], x[1][0][3], x[1][0][4], x[1][0][5],
                                 x[1][0][6], x[1][0][7], x[1][0][8], x[1][0][9],
