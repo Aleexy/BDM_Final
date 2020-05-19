@@ -114,9 +114,9 @@ def main(sc):
 
     #centerline = sc.textFile('nyc_cscl.csv').mapPartitionsWithIndex(parseCL)
     centerline = sc.textFile('/data/share/bdm/nyc_cscl.csv', use_unicode=True).mapPartitionsWithIndex(parseCL)
-    #centerline = centerline.map(lambda x: (x[3], (x[0], x[1], x[2], x[4], x[5], x[6], x[7], x[8], x[9], x[10], x[11])))
+    centerline = centerline.map(lambda x: (x[3], (x[0], x[1], x[2], x[4], x[5], x[6], x[7], x[8], x[9], x[10], x[11])))
 
-    #joined = centerline.join(violations).filter(lambda x: (x[1][1][0]!='' and (x[1][0][1] == x[1][1][2] or x[1][0][2] == x[1][1][2])))
+    joined = centerline.join(violations).filter(lambda x: (x[1][1][0]!='' and (x[1][0][1] == x[1][1][2] or x[1][0][2] == x[1][1][2])))
     '''joined = joined.map(lambda x: ((x[1][0][0], x[1][1][0]),
                                (x[1][1][1], x[1][0][3], x[1][0][4], x[1][0][5],
                                 x[1][0][6], x[1][0][7], x[1][0][8], x[1][0][9],
@@ -143,7 +143,7 @@ def main(sc):
     result = allID.map(lambda x: (x[0], x[1][0], x[1][1], x[1][2], x[1][3], x[1][4], round(sm.OLS([x[1][0], x[1][1], x[1][2], x[1][3], x[1][4]], diff_x).fit().params[0], 2)))
     #result.take(5)
     return result.map(writeToCSV).saveAsTextFile(sys.argv[1])'''
-    centerline.collect()
+    joined.collect()
 
 if __name__=="__main__":
     sc = SparkContext()
