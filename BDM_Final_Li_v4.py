@@ -107,7 +107,7 @@ def map_year(row):
 
 def main(sc):
     #violations = sc.textFile('Parking_Violations_Issued_2020_simplified.csv').mapPartitionsWithIndex(parse_violation)
-    violations = sc.textFile('/data/share/bdm/nyc_parking_violation/2015.csv', use_unicode=True).mapPartitionsWithIndex(parse_violation)
+    violations = sc.textFile('/data/share/bdm/nyc_parking_violation/*.csv', use_unicode=True).mapPartitionsWithIndex(parse_violation)
     violations = violations.map(lambda x: (x[3], (x[0], x[1], x[2], x[4], x[5])))
 
     #centerline = sc.textFile('nyc_cscl.csv').mapPartitionsWithIndex(parseCL)
@@ -115,7 +115,7 @@ def main(sc):
     centerline = centerline.map(lambda x: (x[3], (x[0], x[1], x[2], x[4], x[5], x[6], x[7], x[8], x[9], x[10], x[11])))
 
     joined = centerline.join(violations).filter(lambda x: (x[1][1][0]!='' and (x[1][0][1] == x[1][1][2] or x[1][0][2] == x[1][1][2])))
-    joined = joined.map(lambda x: ((x[1][0][0], x[1][1][0]),
+    '''joined = joined.map(lambda x: ((x[1][0][0], x[1][1][0]),
                                (x[1][1][1], x[1][0][3], x[1][0][4], x[1][0][5],
                                 x[1][0][6], x[1][0][7], x[1][0][8], x[1][0][9],
                                 x[1][0][10], x[1][1][3], x[1][1][4])))
@@ -140,7 +140,8 @@ def main(sc):
 
     result = allID.map(lambda x: (x[0], x[1][0], x[1][1], x[1][2], x[1][3], x[1][4], round(sm.OLS([x[1][0], x[1][1], x[1][2], x[1][3], x[1][4]], diff_x).fit().params[0], 2)))
     #result.take(5)
-    return result.map(writeToCSV).saveAsTextFile(sys.argv[1])
+    return result.map(writeToCSV).saveAsTextFile(sys.argv[1])'''
+    joined.collect()
 
 if __name__=="__main__":
     sc = SparkContext()
