@@ -65,7 +65,7 @@ def parseCL(idx, part):
         yield(p[0], p[28].lower(), p[10].lower(), int(p[13]), LL_HN, LL_HNC, LH_HN, LH_HNC, RL_HN, RL_HNC, RH_HN, RH_HNC)
 
 def filter_left(x):
-    return (x[1][1].isnumeric() and x[1][3].isnumeric())
+    return (x[1][1].isnumeric() and x[1][3].isdecimal())
 
 def filter_left_HN(x):
     HN = int(x[0][1])
@@ -74,7 +74,7 @@ def filter_left_HN(x):
     return (HN>=L and HN<=H)
 
 def filter_right(x):
-    return (x[1][5].isnumeric() and x[1][7].isnumeric())
+    return (x[1][5].isnumeric() and x[1][7].isdecimal())
 
 def filter_right_HN(x):
     HN = int(x[0][1])
@@ -83,8 +83,8 @@ def filter_right_HN(x):
     return (HN>=L and HN<=H)
 
 def filter_c(x):
-    if x[1][0] and x[1][0].isnumeric():
-        if x[1][1].isnumeric() and x[1][2].isnumeric():
+    if x[1][0] and x[1][0].isdecimal():
+        if x[1][1].isdecimal() and x[1][2].isdecimal():
             C = int(x[1][0])
             L = int(x[1][1])
             H = int(x[1][2])
@@ -120,8 +120,8 @@ def main(sc):
                                 x[1][0][6], x[1][0][7], x[1][0][8], x[1][0][9],
                                 x[1][0][10], x[1][1][3], x[1][1][4])))
 
-    left = joined.filter(lambda x: x[0][1].isnumeric() and int(x[0][1])%2==1)
-    right = joined.filter(lambda x: x[0][1].isnumeric() and int(x[0][1])%2==0)
+    left = joined.filter(lambda x: x[0][1].isdecimal() and int(x[0][1])%2==1)
+    right = joined.filter(lambda x: x[0][1].isdecimal() and int(x[0][1])%2==0)
 
     filtered_l = left.filter(filter_left).filter(filter_left_HN)
     filtered_l = filtered_l.map(lambda x: ((x[0][0], x[1][10], x[1][9]), (x[1][0], x[1][2], x[1][4])))
