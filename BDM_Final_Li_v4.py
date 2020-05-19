@@ -65,7 +65,7 @@ def parseCL(idx, part):
         yield(p[0], p[28].lower(), p[10].lower(), int(p[13]), LL_HN, LL_HNC, LH_HN, LH_HNC, RL_HN, RL_HNC, RH_HN, RH_HNC)
 
 def filter_left(x):
-    return (x[1][1].isnumeric() and x[1][3].isdecimal())
+    return (x[1][1].isdecimal() and x[1][3].isdecimal())
 
 def filter_left_HN(x):
     HN = int(x[0][1])
@@ -74,7 +74,7 @@ def filter_left_HN(x):
     return (HN>=L and HN<=H)
 
 def filter_right(x):
-    return (x[1][5].isnumeric() and x[1][7].isdecimal())
+    return (x[1][5].isdecimal() and x[1][7].isdecimal())
 
 def filter_right_HN(x):
     HN = int(x[0][1])
