@@ -108,11 +108,11 @@ def map_year(row):
 def main(sc):
     #violations = sc.textFile('Parking_Violations_Issued_2020_simplified.csv').mapPartitionsWithIndex(parse_violation)
     violations = sc.textFile('/data/share/bdm/nyc_parking_violation/*.csv', use_unicode=True).mapPartitionsWithIndex(parse_violation)
-    violations = violations.mapPartitions(lambda x: (x[3], (x[0], x[1], x[2], x[4], x[5])))
+    violations = violations.map(lambda x: (x[3], (x[0], x[1], x[2], x[4], x[5])))
 
     #centerline = sc.textFile('nyc_cscl.csv').mapPartitionsWithIndex(parseCL)
     centerline = sc.textFile('/data/share/bdm/nyc_cscl.csv', use_unicode=True).mapPartitionsWithIndex(parseCL)
-    centerline = centerline.mapPartitions(lambda x: (x[3], (x[0], x[1], x[2], x[4], x[5], x[6], x[7], x[8], x[9], x[10], x[11])))
+    centerline = centerline.map(lambda x: (x[3], (x[0], x[1], x[2], x[4], x[5], x[6], x[7], x[8], x[9], x[10], x[11])))
 
     joined = centerline.join(violations).filter(lambda x: (x[1][1][0]!='' and (x[1][0][1] == x[1][1][2] or x[1][0][2] == x[1][1][2])))
     joined = joined.mapPartitions(lambda x: ((x[1][0][0], x[1][1][0]),
