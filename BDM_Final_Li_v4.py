@@ -140,7 +140,7 @@ def main(sc):
 
     result = allID.mapPartitions(lambda x: (x[0], x[1][0], x[1][1], x[1][2], x[1][3], x[1][4], round(sm.OLS([x[1][0], x[1][1], x[1][2], x[1][3], x[1][4]], diff_x).fit().params[0], 2)))
     #result.take(5)
-    return result.mapPartitions(writeToCSV).saveAsTextFile(sys.argv[1])
+    return result.map(writeToCSV).saveAsTextFile(sys.argv[1])
 
 if __name__=="__main__":
     sc = SparkContext()
