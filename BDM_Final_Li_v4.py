@@ -115,7 +115,7 @@ def main(sc):
     centerline = centerline.map(lambda x: (x[3], (x[0], x[1], x[2], x[4], x[5], x[6], x[7], x[8], x[9], x[10], x[11])))
 
     joined = centerline.join(violations).filter(lambda x: (x[1][1][0]!='' and (x[1][0][1] == x[1][1][2] or x[1][0][2] == x[1][1][2])))
-    joined = joined.mapPartitions(lambda x: ((x[1][0][0], x[1][1][0]),
+    joined = joined.map(lambda x: ((x[1][0][0], x[1][1][0]),
                                (x[1][1][1], x[1][0][3], x[1][0][4], x[1][0][5],
                                 x[1][0][6], x[1][0][7], x[1][0][8], x[1][0][9],
                                 x[1][0][10], x[1][1][3], x[1][1][4])))
@@ -124,21 +124,21 @@ def main(sc):
     right = joined.filter(lambda x: x[0][1].isdecimal() and int(x[0][1])%2==0)
 
     filtered_l = left.filter(filter_left).filter(filter_left_HN)
-    filtered_l = filtered_l.mapPartitions(lambda x: ((x[0][0], x[1][10], x[1][9]), (x[1][0], x[1][2], x[1][4])))
+    filtered_l = filtered_l.map(lambda x: ((x[0][0], x[1][10], x[1][9]), (x[1][0], x[1][2], x[1][4])))
 
     filtered_r = right.filter(filter_right).filter(filter_right_HN)
-    filtered_r = filtered_r.mapPartitions(lambda x: ((x[0][0], x[1][10], x[1][9]), (x[1][0], x[1][6], x[1][8])))
+    filtered_r = filtered_r.map(lambda x: ((x[0][0], x[1][10], x[1][9]), (x[1][0], x[1][6], x[1][8])))
 
-    data_l = filtered_l.filter(filter_c).mapPartitions(lambda x: ((x[0][0], x[0][1]), x[0][2])).distinct().mapPartitions(lambda x: ((x[0][0]),(x[1])))
-    data_r = filtered_r.filter(filter_c).mapPartitions(lambda x: ((x[0][0], x[0][1]), x[0][2])).distinct().mapPartitions(lambda x: ((x[0][0]),(x[1])))
+    data_l = filtered_l.filter(filter_c).map(lambda x: ((x[0][0], x[0][1]), x[0][2])).distinct().map(lambda x: ((x[0][0]),(x[1])))
+    data_r = filtered_r.filter(filter_c).map(lambda x: ((x[0][0], x[0][1]), x[0][2])).distinct().map(lambda x: ((x[0][0]),(x[1])))
     data = data_l.union(data_r)
 
-    count = data.mapPartitions(map_year)
-    allID = centerline.mapPartitions(lambda x: (x[1][0], (0, 0, 0, 0, 0))).union(count).reduceByKey(lambda x, y: (x[0]+y[0], x[1]+y[1], x[2]+y[2], x[3]+y[3], x[4]+y[4]))
+    count = data.map(map_year)
+    allID = centerline.map(lambda x: (x[1][0], (0, 0, 0, 0, 0))).union(count).reduceByKey(lambda x, y: (x[0]+y[0], x[1]+y[1], x[2]+y[2], x[3]+y[3], x[4]+y[4]))
 
     diff_x = [-2, -1, 0, 1, 2]
 
-    result = allID.mapPartitions(lambda x: (x[0], x[1][0], x[1][1], x[1][2], x[1][3], x[1][4], round(sm.OLS([x[1][0], x[1][1], x[1][2], x[1][3], x[1][4]], diff_x).fit().params[0], 2)))
+    result = allID.map(lambda x: (x[0], x[1][0], x[1][1], x[1][2], x[1][3], x[1][4], round(sm.OLS([x[1][0], x[1][1], x[1][2], x[1][3], x[1][4]], diff_x).fit().params[0], 2)))
     #result.take(5)
     return result.map(writeToCSV).saveAsTextFile(sys.argv[1])
 
