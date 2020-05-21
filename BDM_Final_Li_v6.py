@@ -113,10 +113,10 @@ def main(sc):
 
     result = count.rdd.map(map_year)
 
-    allID = centerline_l.rdd.map(lambda x: (x[-1], (0, 0, 0, 0, 0))).union(result).reduceByKey(lambda x, y: (x[0]+y[0], x[1]+y[1], x[2]+y[2], x[3]+y[3], x[4]+y[4]))
+    allID = centerline_l.rdd.map(lambda x: (x[-1], (0, 0, 0, 0, 0))).union(result).reduceByKey(lambda x, y: (x[0]+y[0], x[1]+y[1], x[2]+y[2], x[3]+y[3], x[4]+y[4])).sortByKey()
 
     diff_x = [-2, -1, 0, 1, 2]
-    result = allID.map(lambda x: (x[0], (x[1][0], x[1][1], x[1][2], x[1][3], x[1][4], round(sm.OLS([x[1][0], x[1][1], x[1][2], x[1][3], x[1][4]], diff_x).fit().params[0], 2)))).sortByKey()
+    result = allID.map(lambda x: (x[0], x[1][0], x[1][1], x[1][2], x[1][3], x[1][4], round(sm.OLS([x[1][0], x[1][1], x[1][2], x[1][3], x[1][4]], diff_x).fit().params[0], 2)))
     #result.take(5)
     return result.map(writeToCSV).saveAsTextFile(sys.argv[1])
 
